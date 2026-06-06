@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f172a">
+    <title>Gully Cricket Scorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">GC</div>
+          <div>
+            <strong>Gully Cricket</strong>
+            <span>Scorer</span>
+          </div>
+        </div>
+        <nav class="nav" aria-label="Primary">
+          <button class="nav-item is-active" data-view="dashboard">Dashboard</button>
+          <button class="nav-item" data-view="tournaments">Tournaments</button>
+          <button class="nav-item" data-view="teams">Teams</button>
+          <button class="nav-item" data-view="players">Players</button>
+          <button class="nav-item" data-view="match">Live Match</button>
+          <button class="nav-item" data-view="history">History</button>
+          <button class="nav-item" data-view="settings">Settings</button>
+        </nav>
+        <div class="auth-card">
+          <div id="authStatus">Local session</div>
+          <button class="ghost-btn" id="googleLoginBtn">Google Login</button>
+          <button class="ghost-btn" id="anonLoginBtn">Anonymous Login</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1 id="viewTitle">Dashboard</h1>
+            <p id="viewSubtitle">Create teams, start a match, and score every gully rule.</p>
+          </div>
+          <div class="top-actions">
+            <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
+            <button class="primary-btn" id="newMatchBtn">New Match</button>
+          </div>
+        </header>
+
+        <section id="dashboardView" class="view is-active"></section>
+        <section id="tournamentsView" class="view"></section>
+        <section id="teamsView" class="view"></section>
+        <section id="playersView" class="view"></section>
+        <section id="matchView" class="view"></section>
+        <section id="historyView" class="view"></section>
+        <section id="settingsView" class="view"></section>
+      </main>
+    </div>
+
+    <button class="fab" id="fabNewMatch" title="Start match" aria-label="Start match">+</button>
+
+    <div class="modal-backdrop" id="modalBackdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-header">
+          <h2 id="modalTitle">Dialog</h2>
+          <button class="icon-btn" id="modalClose" aria-label="Close">×</button>
+        </div>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+    <script type="module" src="src/js/app.js"></script>
+  </body>
+</html>
