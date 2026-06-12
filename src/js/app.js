@@ -1,29 +1,151 @@
-import { initFirebase, signInAnon, signInGoogle } from "./firebase-service.js";
-import { UI } from "./ui.js";
+import { initFirebase, loginUser, registerUser, signInAnon, logoutUser } from "./firebase-service.js";
+import { listenToAuth, addAuthStateListener } from "./auth.js";
+import { router } from "./router.js";
+import { ui } from "./ui.js";
 
-const savedTheme = localStorage.getItem("gully-theme");
-if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+// Load Theme preference
+const savedTheme = localStorage.getItem("gully-theme") || "dark";
+document.documentElement.setAttribute("data-theme", savedTheme);
 
-const ui = new UI();
-ui.init();
+async function boot() {
+  // 1. Initialize Firebase
+  const firebaseState = await initFirebase();
+  if (!firebaseState.ready) {
+    console.error("Firebase load failed:", firebaseState.reason);
+    ui.toast(`Firebase error: ${firebaseState.reason}`, "danger");
+    return;
+  }
 
-const firebaseState = await initFirebase();
-document.querySelector("#authStatus").textContent = firebaseState.ready ? "Firebase ready" : "Local session";
+  // 2. Initialize UI modules
+  ui.init();
 
-document.querySelector("#googleLoginBtn").addEventListener("click", async () => {
+  // 3. Register Hash Routes
+  router.addRoute("#/dashboard", () => ui.showDashboard());
+  router.addRoute("#/tournaments", () => ui.showTournaments());
+  router.addRoute("#/tournament/:id", (params) => ui.showTournamentDetail(params.id));
+  router.addRoute("#/teams", () => ui.showTeams());
+  router.addRoute("#/team/:id", (params) => ui.showTeamDetail(params.id));
+  router.addRoute("#/players", () => ui.showPlayers());
+  router.addRoute("#/player/:id", (params) => ui.showPlayerDetail(params.id));
+  router.addRoute("#/admins", () => ui.showAdmins(), ["superadmin"]);
+  router.addRoute("#/admin/:id", (params) => ui.showAdminDetail(params.id), ["superadmin"]);
+  router.addRoute("#/matches", () => ui.showMatches());
+  router.addRoute("#/match/:id", (params) => ui.showMatchDetail(params.id));
+  router.addRoute("#/profile", () => ui.showProfile());
+
+  // 4. Register Auth State Listener
+  addAuthStateListener((user) => {
+    if (user) {
+      ui.onLogin(user);
+      router.resolve();
+    } else {
+      ui.onLogout();
+      router.resolve();
+    }
+  });
+
+  // 5. Start listening to Firebase Auth state
+  await listenToAuth();
+}
+
+// Auth screen UI interactions
+const tabLogin = document.getElementById("tab-login");
+const tabRegister = document.getElementById("tab-register");
+const loginForm = document.getElementById("login-form");
+const registerForm = document.getElementById("register-form");
+const anonLoginBtn = document.getElementById("anon-login-btn");
+
+tabLogin.addEventListener("click", () => {
+  tabLogin.classList.add("active");
+  tabRegister.classList.remove("active");
+  loginForm.style.display = "flex";
+  registerForm.style.display = "none";
+});
+
+tabRegister.addEventListener("click", () => {
+  tabRegister.classList.add("active");
+  tabLogin.classList.remove("active");
+  registerForm.style.display = "flex";
+  loginForm.style.display = "none";
+});
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("login-email").value;
+  const password = document.getElementById("login-password").value;
+  
   try {
-    const result = await signInGoogle();
-    document.querySelector("#authStatus").textContent = result?.user?.displayName || "Google user";
+    ui.showLoader();
+    await loginUser(email, password);
+    ui.toast("Successfully signed in!", "success");
   } catch (error) {
     ui.toast(error.message, "danger");
+  } finally {
+    ui.hideLoader();
   }
 });
 
-document.querySelector("#anonLoginBtn").addEventListener("click", async () => {
+registerForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = document.getElementById("register-name").value;
+  const email = document.getElementById("register-email").value;
+  const mobile = document.getElementById("register-mobile").value;
+  const gender = document.getElementById("register-gender").value;
+  const password = document.getElementById("register-password").value;
+
+  if (password.length < 6) {
+    ui.toast("Password must be at least 6 characters.", "warning");
+    return;
+  }
+
   try {
-    const result = await signInAnon();
-    document.querySelector("#authStatus").textContent = result?.user?.uid ? "Anonymous user" : "Local session";
+    ui.showLoader();
+    await registerUser(name, email, mobile, gender, password);
+    ui.toast("Account created successfully!", "success");
   } catch (error) {
     ui.toast(error.message, "danger");
+  } finally {
+    ui.hideLoader();
   }
 });
+
+anonLoginBtn.addEventListener("click", async () => {
+  try {
+    ui.showLoader();
+    await signInAnon();
+    ui.toast("Signed in as temporary Guest Player.", "success");
+  } catch (error) {
+    ui.toast(error.message, "danger");
+  } finally {
+    ui.hideLoader();
+  }
+});
+
+// Sidebar Sign Out Button
+document.getElementById("sidebar-logout-btn").addEventListener("click", async () => {
+  try {
+    ui.showLoader();
+    await logoutUser();
+    ui.toast("Signed out successfully.", "success");
+  } catch (error) {
+    ui.toast(error.message, "danger");
+  } finally {
+    ui.hideLoader();
+  }
+});
+
+// Theme Toggle Button
+document.getElementById("theme-toggle-btn").addEventListener("click", () => {
+  const currentTheme = document.documentElement.getAttribute("data-theme");
+  const nextTheme = currentTheme === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", nextTheme);
+  localStorage.setItem("gully-theme", nextTheme);
+});
+
+// Close Player warning banner
+document.getElementById("closePlayerBannerBtn").addEventListener("click", () => {
+  document.getElementById("player-banner").style.display = "none";
+});
+
+// Boot the application
+boot();

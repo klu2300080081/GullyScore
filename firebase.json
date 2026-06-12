@@ -1,19 +1,31 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "public": ".",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "Untitled-1.py"
+      "Untitled-1.py",
+      "blueprint/**"
     ],
     "headers": [
       {
+        "source": "**/*.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+          { "key": "Pragma", "value": "no-cache" }
+        ]
+      },
+      {
         "source": "**/*.@(js|css)",
         "headers": [
-          { "key": "Cache-Control", "value": "max-age=3600" }
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
         ]
       }
     ]
   }
 }
+

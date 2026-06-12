@@ -1,10 +1,11 @@
-export const firebaseConfig = {
-  apiKey: "PASTE_FIREBASE_API_KEY",
-  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE_PROJECT_ID.appspot.com",
-  messagingSenderId: "PASTE_SENDER_ID",
-  appId: "PASTE_APP_ID",
+export const  firebaseConfig = {
+  apiKey: "AIzaSyCo2SuuKxZItzQY4_87hmQTkK_FomhoilA",
+  authDomain: "gully-score-fbb1e.firebaseapp.com",
+  projectId: "gully-score-fbb1e",
+  storageBucket: "gully-score-fbb1e.firebasestorage.app",
+  messagingSenderId: "513452254509",
+  appId: "1:513452254509:web:1fea3532857959bf521fa4",
+  measurementId: "G-9HEQ0WVQ73"
 };
 
 export function hasFirebaseConfig() {

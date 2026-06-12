@@ -1,77 +1,863 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
-    <title>Gully Cricket Scorer</title>
+    <title>GullyScore — Ultimate Cricket Scoring</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/styles.css">
+    <!-- Preload key modules to reduce app load latency -->
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js">
+    <link rel="modulepreload" href="./src/js/firebase-config.js">
+    <link rel="modulepreload" href="./src/js/firebase-service.js">
+    <link rel="modulepreload" href="./src/js/auth.js">
+    <link rel="modulepreload" href="./src/js/router.js">
+    <link rel="modulepreload" href="./src/js/ui.js">
+    <link rel="modulepreload" href="./src/js/app.js">
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div class="brand">
-          <div class="brand-mark">GC</div>
-          <div>
-            <strong>Gully Cricket</strong>
-            <span>Scorer</span>
-          </div>
-        </div>
-        <nav class="nav" aria-label="Primary">
-          <button class="nav-item is-active" data-view="dashboard">Dashboard</button>
-          <button class="nav-item" data-view="tournaments">Tournaments</button>
-          <button class="nav-item" data-view="teams">Teams</button>
-          <button class="nav-item" data-view="players">Players</button>
-          <button class="nav-item" data-view="match">Live Match</button>
-          <button class="nav-item" data-view="history">History</button>
-          <button class="nav-item" data-view="settings">Settings</button>
-        </nav>
-        <div class="auth-card">
-          <div id="authStatus">Local session</div>
-          <button class="ghost-btn" id="googleLoginBtn">Google Login</button>
-          <button class="ghost-btn" id="anonLoginBtn">Anonymous Login</button>
-        </div>
-      </aside>
-
-      <main class="main">
-        <header class="topbar">
-          <div>
-            <h1 id="viewTitle">Dashboard</h1>
-            <p id="viewSubtitle">Create teams, start a match, and score every gully rule.</p>
-          </div>
-          <div class="top-actions">
-            <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
-            <button class="primary-btn" id="newMatchBtn">New Match</button>
-          </div>
-        </header>
-
-        <section id="dashboardView" class="view is-active"></section>
-        <section id="tournamentsView" class="view"></section>
-        <section id="teamsView" class="view"></section>
-        <section id="playersView" class="view"></section>
-        <section id="matchView" class="view"></section>
-        <section id="historyView" class="view"></section>
-        <section id="settingsView" class="view"></section>
-      </main>
+    <!-- Player Warning Banner -->
+    <div id="player-banner" class="player-banner" style="display: none;">
+      <div class="banner-content">
+        <span class="banner-icon">ℹ️</span>
+        <span>You are browsing in <strong>Player Mode</strong>. You have read-only access to matches and tournaments. To score matches or create tournaments, request Admin clearance from the <a href="#/profile" class="banner-link">Profile Page</a>.</span>
+      </div>
+      <button class="banner-close" id="closePlayerBannerBtn">&times;</button>
     </div>
 
-    <button class="fab" id="fabNewMatch" title="Start match" aria-label="Start match">+</button>
-
-    <div class="modal-backdrop" id="modalBackdrop" hidden>
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <div class="modal-header">
-          <h2 id="modalTitle">Dialog</h2>
-          <button class="icon-btn" id="modalClose" aria-label="Close">×</button>
+    <!-- Login/Register Screen -->
+    <div id="auth-screen" class="auth-screen">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="auth-logo">GS</div>
+          <h2>GullyScore</h2>
+          <p>Score your street cricket matches like a pro</p>
         </div>
-        <div id="modalBody"></div>
+        <div class="auth-tabs">
+          <button id="tab-login" class="auth-tab active">Sign In</button>
+          <button id="tab-register" class="auth-tab">Sign Up</button>
+        </div>
+        
+        <!-- Login Form -->
+        <form id="login-form" class="auth-form">
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <input type="email" id="login-email" required placeholder="name@domain.com">
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" required placeholder="••••••••">
+          </div>
+          <button type="submit" class="auth-btn">Sign In</button>
+        </form>
+
+        <!-- Register Form -->
+        <form id="register-form" class="auth-form" style="display: none;">
+          <div class="form-group">
+            <label for="register-name">Full Name</label>
+            <input type="text" id="register-name" required placeholder="John Doe">
+          </div>
+          <div class="form-group">
+            <label for="register-email">Email Address</label>
+            <input type="email" id="register-email" required placeholder="name@domain.com">
+          </div>
+          <div class="form-group">
+            <label for="register-mobile">Mobile Number</label>
+            <input type="tel" id="register-mobile" required placeholder="9876543210">
+          </div>
+          <div class="form-group">
+            <label for="register-gender">Gender</label>
+            <select id="register-gender" required>
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="register-password">Password</label>
+            <input type="password" id="register-password" required placeholder="Minimum 6 characters">
+          </div>
+          <button type="submit" class="auth-btn">Create Account</button>
+        </form>
+
+        <div class="auth-divider"><span>OR</span></div>
+        
+        <button id="anon-login-btn" class="anon-btn">Continue as Guest Player</button>
       </div>
     </div>
 
+    <!-- App Shell (Main layout) -->
+    <div id="app-shell" class="app-shell" style="display: none;">
+      <!-- Sidebar Navigation -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">GS</div>
+          <div>
+            <strong>GullyScore</strong>
+            <span>Dashboard v2.0</span>
+          </div>
+        </div>
+
+        <nav class="nav" id="sidebar-nav">
+          <!-- Dynamically populated by auth/router/ui -->
+        </nav>
+
+        <!-- User Profile/Switcher Card in Sidebar Bottom -->
+        <div class="sidebar-footer">
+          <div class="user-info">
+            <div class="user-avatar" id="sidebar-user-avatar">?</div>
+            <div class="user-details">
+              <span class="user-name" id="sidebar-user-name">Loading...</span>
+              <span class="user-role-badge" id="sidebar-user-role">Player</span>
+            </div>
+            <button class="logout-btn" id="sidebar-logout-btn" title="Sign Out">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="main">
+        <!-- Top Navigation Bar -->
+        <header class="topbar">
+          <div class="page-title-area">
+            <h1 id="view-title">Dashboard</h1>
+            <p id="view-subtitle">Overview of matches, teams, and tournament stats.</p>
+          </div>
+          <div class="top-actions">
+            <!-- Notifications Badge -->
+            <button class="icon-btn notification-badge-container" id="notif-bell-btn" title="Notifications">
+              <span class="bell-icon">🔔</span>
+              <span class="badge" id="notif-count" style="display: none;">0</span>
+            </button>
+            <button class="icon-btn" id="theme-toggle-btn" title="Toggle Theme">🌓</button>
+            <button class="primary-btn" id="header-action-btn">New Match</button>
+          </div>
+        </header>
+
+        <!-- Dynamic Page Container Sections -->
+        <div class="content-container">
+          
+          <!-- 1. Dashboard View -->
+          <section id="view-dashboard" class="view-section" style="display: none;">
+            <div class="bento-grid" id="dashboard-stats-grid">
+              <!-- Bento cards will be generated by ui.js -->
+            </div>
+            <div class="dashboard-panels">
+              <div class="dashboard-panel">
+                <h3>Live & Active Matches</h3>
+                <div class="matches-list-compact" id="dashboard-live-matches">
+                  <div class="loading-state">Loading matches...</div>
+                </div>
+              </div>
+              <div class="dashboard-panel">
+                <h3>Ongoing Tournaments</h3>
+                <div class="tournaments-list-compact" id="dashboard-ongoing-tournaments">
+                  <div class="loading-state">Loading tournaments...</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 2. Tournaments List View -->
+          <section id="view-tournaments" class="view-section" style="display: none;">
+            <div class="search-action-row">
+              <div class="search-box">
+                <input type="text" id="tournament-search" placeholder="Search tournaments by name...">
+              </div>
+              <button class="primary-btn" id="add-tournament-btn" style="display: none;">+ Add Tournament</button>
+            </div>
+            <div class="tournaments-grid" id="tournaments-list-container">
+              <div class="loading-state">Loading tournaments...</div>
+            </div>
+          </section>
+
+          <!-- 3. Tournament Detail View -->
+          <section id="view-tournament-detail" class="view-section" style="display: none;">
+            <div class="detail-header-card">
+              <button class="back-link-btn" id="td-back-btn">&larr; Back to Tournaments</button>
+              <div class="td-header-flex">
+                <div>
+                  <h2 id="td-name">Tournament Name</h2>
+                  <p id="td-meta">Dates & Details</p>
+                </div>
+                <div class="td-actions" id="td-admin-actions">
+                  <!-- End tournament button shown here -->
+                </div>
+              </div>
+              <div class="sub-tabs">
+                <button class="sub-tab-btn active" data-tab="standings">Points Table</button>
+                <button class="sub-tab-btn" data-tab="matches">Matches</button>
+                <button class="sub-tab-btn" data-tab="stats">Statistics</button>
+              </div>
+            </div>
+
+            <!-- Tab 1: Points Table -->
+            <div class="tournament-tab-content" id="td-tab-standings">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Pos</th>
+                      <th>Team</th>
+                      <th>P</th>
+                      <th>W</th>
+                      <th>L</th>
+                      <th>T/NR</th>
+                      <th>NRR</th>
+                      <th>Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody id="td-standings-body">
+                    <tr><td colspan="8" class="empty-state">No teams registered.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tab 2: Matches -->
+            <div class="tournament-tab-content" id="td-tab-matches" style="display: none;">
+              <div class="search-action-row">
+                <h3>Tournament Matches</h3>
+                <button class="primary-btn" id="td-create-match-btn" style="display: none;">Create Match</button>
+              </div>
+              <div class="matches-grid" id="td-matches-container">
+                <div class="empty-state">No matches scheduled.</div>
+              </div>
+            </div>
+
+            <!-- Tab 3: Statistics -->
+            <div class="tournament-tab-content" id="td-tab-stats" style="display: none;">
+              <div class="stats-panel-grid" id="td-stats-container">
+                <!-- Statistics will load here -->
+              </div>
+            </div>
+          </section>
+
+          <!-- 4. Teams List View -->
+          <section id="view-teams" class="view-section" style="display: none;">
+            <div class="search-action-row">
+              <div class="search-box">
+                <input type="text" id="team-search" placeholder="Search teams...">
+              </div>
+              <button class="primary-btn" id="add-team-btn">+ Add Team</button>
+            </div>
+            <div class="teams-grid" id="teams-list-container">
+              <div class="loading-state">Loading teams...</div>
+            </div>
+          </section>
+
+          <!-- 5. Team Detail View -->
+          <section id="view-team-detail" class="view-section" style="display: none;">
+            <div class="detail-header-card">
+              <button class="back-link-btn" id="team-back-btn">&larr; Back to Teams</button>
+              <h2 id="team-detail-name">Team Name</h2>
+              <div class="team-meta-info">
+                <span>Captain: <a id="team-detail-captain" href="#">Captain Name</a></span>
+                <span>Created By: <a id="team-detail-creator" href="#">Creator Name</a></span>
+                <div class="team-admin-actions" id="team-admin-actions" style="display: none; gap: 8px; margin-top: 8px;">
+                  <button class="primary-btn btn-sm" id="btn-edit-team" style="background: linear-gradient(135deg, var(--brand), hsl(171, 77%, 38%)); padding: 6px 12px; font-size: 13px;">✏️ Edit Squad</button>
+                  <button class="primary-btn btn-sm" id="btn-delete-team" style="background: linear-gradient(135deg, var(--danger), hsl(354, 70%, 45%)); padding: 6px 12px; font-size: 13px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);">🗑️ Delete Team</button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="team-layout-grid">
+              <div class="team-players-panel">
+                <h3>Squad Members</h3>
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Player Name</th>
+                        <th>Role</th>
+                        <th>Matches</th>
+                      </tr>
+                    </thead>
+                    <tbody id="team-players-body">
+                      <!-- Players listed here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <div class="team-stats-panel">
+                <h3>Team Performance</h3>
+                <div class="bento-grid-mini" id="team-stats-grid">
+                  <!-- Team stats bento cards -->
+                </div>
+                
+                <h3 class="margin-top-large">Captain History</h3>
+                <ul class="captain-history-list" id="team-captain-history">
+                  <!-- Captain history items -->
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- 6. Players List View -->
+          <section id="view-players" class="view-section" style="display: none;">
+            <div class="search-action-row">
+              <div class="search-box">
+                <input type="text" id="player-search" placeholder="Search players by name...">
+              </div>
+              <button class="primary-btn" id="add-player-btn">+ Add Player</button>
+            </div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Player ID</th>
+                    <th>Name</th>
+                    <th>Team</th>
+                    <th>Umpired Matches</th>
+                    <th>Teams Created</th>
+                  </tr>
+                </thead>
+                <tbody id="players-list-body">
+                  <tr><td colspan="5" class="loading-state">Loading players...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- 7. Player Detail View -->
+          <section id="view-player-detail" class="view-section" style="display: none;">
+            <div class="detail-header-card">
+              <button class="back-link-btn" id="player-back-btn">&larr; Back to Players</button>
+              <div class="player-header-flex">
+                <div>
+                  <h2 id="pd-name">Player Name</h2>
+                  <p id="pd-sub">Player ID & Tags</p>
+                </div>
+                <div class="pd-claim-tag" id="pd-claim-status" style="display: none;">
+                  <!-- Shows claimed by note for guest players -->
+                </div>
+              </div>
+            </div>
+
+            <div class="bento-grid" id="player-stats-grid">
+              <!-- Player stats cards -->
+            </div>
+
+            <div class="player-history-tabs margin-top-large">
+              <div class="sub-tabs">
+                <button class="sub-tab-btn active" data-player-tab="matches">Matches History</button>
+                <button class="sub-tab-btn" data-player-tab="teams">Teams Created</button>
+              </div>
+              
+              <div class="player-tab-content" id="pd-tab-matches">
+                <div class="table-container">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Match</th>
+                        <th>Runs</th>
+                        <th>Balls</th>
+                        <th>Wickets</th>
+                        <th>Runs Conceded</th>
+                        <th>Awards</th>
+                        <th>Result</th>
+                      </tr>
+                    </thead>
+                    <tbody id="pd-matches-body">
+                      <!-- Match history -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <div class="player-tab-content" id="pd-tab-teams" style="display: none;">
+                <ul class="simple-list" id="pd-teams-created-list">
+                  <!-- Teams created list -->
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- 8. Admins Page (Super Admin only) -->
+          <section id="view-admins" class="view-section" style="display: none;">
+            <div class="sub-tabs margin-bottom-medium">
+              <button class="sub-tab-btn active" data-admin-tab="list">Admin List</button>
+              <button class="sub-tab-btn" data-admin-tab="add">Add Admin</button>
+              <button class="sub-tab-btn" data-admin-tab="requests">Role Requests</button>
+            </div>
+
+            <!-- Tab 1: Admin List -->
+            <div class="admin-tab-content" id="ad-tab-list">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Mobile</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-list-body">
+                    <tr><td colspan="4" class="loading-state">Loading admins...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tab 2: Add Admin -->
+            <div class="admin-tab-content" id="ad-tab-add" style="display: none;">
+              <form id="add-admin-form" class="standard-form max-width-form">
+                <div class="form-group">
+                  <label for="admin-select-player">Select Registered Player to Promote</label>
+                  <select id="admin-select-player" required>
+                    <option value="">Select Player</option>
+                  </select>
+                </div>
+                <button type="submit" class="primary-btn">Promote to Admin</button>
+              </form>
+            </div>
+
+            <!-- Tab 3: Requests -->
+            <div class="admin-tab-content" id="ad-tab-requests" style="display: none;">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Player Name</th>
+                      <th>Email</th>
+                      <th>Mobile</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-requests-body">
+                    <tr><td colspan="4" class="empty-state">No pending requests.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- 9. Admin Detail View (Super Admin only) -->
+          <section id="view-admin-detail" class="view-section" style="display: none;">
+            <div class="detail-header-card">
+              <button class="back-link-btn" id="ad-detail-back-btn">&larr; Back to Admin List</button>
+              <h2 id="ad-detail-name">Admin Name</h2>
+              <p id="ad-detail-email">admin@gullyscore.com</p>
+            </div>
+
+            <div class="admin-detail-grids">
+              <div class="admin-detail-panel">
+                <h3>Tournaments Created</h3>
+                <div class="tournaments-grid" id="ad-detail-tournaments"></div>
+              </div>
+              <div class="admin-detail-panel">
+                <h3>Matches Conducted</h3>
+                <div class="matches-grid" id="ad-detail-matches"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 10. Live Match List View -->
+          <section id="view-live-match-list" class="view-section" style="display: none;">
+            <div class="sub-tabs margin-bottom-medium">
+              <button class="sub-tab-btn active" data-match-list-tab="live">Live Matches</button>
+              <button class="sub-tab-btn" data-match-list-tab="completed">Completed Matches</button>
+            </div>
+
+            <div class="match-list-content" id="match-list-live-panel">
+              <div class="matches-grid" id="live-matches-grid-container">
+                <div class="loading-state">Loading matches...</div>
+              </div>
+            </div>
+
+            <div class="match-list-content" id="match-list-completed-panel" style="display: none;">
+              <div class="matches-grid" id="completed-matches-grid-container">
+                <div class="loading-state">Loading matches...</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 11. Live Scoring / Match Detail View -->
+          <section id="view-live-match" class="view-section" style="display: none;">
+            <div class="scoring-container">
+              <!-- Match header: Teams, score, and state -->
+              <div class="match-scoring-header">
+                <div class="msh-tournament-nav">
+                  <a href="#" id="msh-tournament-link">Tournament Header &larr;</a>
+                </div>
+                <div class="msh-scoreboard">
+                  <div class="msh-team msh-team-bat">
+                    <h2 id="score-batting-team-name">Batting Team</h2>
+                    <span class="msh-score" id="score-runs-wickets">0 / 0</span>
+                    <span class="msh-overs" id="score-overs">Overs: 0.0</span>
+                  </div>
+                  <div class="msh-versus">VS</div>
+                  <div class="msh-team msh-team-bowl">
+                    <h2 id="score-bowling-team-name">Bowling Team</h2>
+                    <span class="msh-target" id="score-innings-info">Innings 1</span>
+                  </div>
+                </div>
+                <div class="msh-status-bar" id="score-status-text">
+                  Match starting soon...
+                </div>
+              </div>
+
+              <!-- Scoring Tabs -->
+              <div class="sub-tabs margin-top-medium">
+                <button class="sub-tab-btn active" data-scoring-tab="scoring">Live Scoring</button>
+                <button class="sub-tab-btn" data-scoring-tab="scorecard">Scorecard</button>
+                <button class="sub-tab-btn" data-scoring-tab="stats">Match Stats</button>
+              </div>
+
+              <!-- Content Tab 1: Live Scoring Interface (Scorers only) -->
+              <div class="scoring-tab-content" id="match-tab-scoring">
+                <!-- Score control grid for scorers -->
+                <div id="scorer-controls" class="scorer-controls" style="display: none;">
+                  <div class="player-cards-grid">
+                    <!-- Striker & Non-Striker Card -->
+                    <div class="batsmen-card">
+                      <h3>Batting</h3>
+                      <div class="batsmen-row active-striker" id="striker-row">
+                        <div>
+                          <span class="striker-indicator">🏏</span>
+                          <span class="player-name-text" id="striker-name">Striker</span>
+                        </div>
+                        <strong id="striker-stats">0 (0)</strong>
+                      </div>
+                      <div class="batsmen-row" id="nonstriker-row">
+                        <div>
+                          <span class="player-name-text" id="nonstriker-name">Non-Striker</span>
+                        </div>
+                        <strong id="nonstriker-stats">0 (0)</strong>
+                      </div>
+                      <button class="secondary-btn btn-small margin-top-small" id="change-batsmen-btn">Change Batsman</button>
+                    </div>
+
+                    <!-- Bowler Card -->
+                    <div class="bowler-card">
+                      <h3>Bowling</h3>
+                      <div class="bowler-row">
+                        <div>
+                          <span class="bowler-indicator">🏀</span>
+                          <span id="bowler-name">Bowler</span>
+                        </div>
+                        <strong id="bowler-stats">0-0 (0.0)</strong>
+                      </div>
+                      <div class="over-tracker margin-top-small">
+                        <span>This Over:</span>
+                        <div class="ball-dots" id="over-ball-dots">
+                          <!-- Ball indicators (e.g. 1, Nb, W) -->
+                        </div>
+                      </div>
+                      <button class="secondary-btn btn-small margin-top-small" id="change-bowler-btn">Change Bowler</button>
+                    </div>
+                  </div>
+
+                  <!-- Ball Event Button Matrix -->
+                  <div class="scoring-matrix margin-top-medium">
+                    <h3>Record Event</h3>
+                    <div class="matrix-grid">
+                      <!-- Runs -->
+                      <button class="matrix-btn run-btn" data-event="0">0</button>
+                      <button class="matrix-btn run-btn" data-event="1">1</button>
+                      <button class="matrix-btn run-btn" data-event="2">2</button>
+                      <button class="matrix-btn run-btn" data-event="3">3</button>
+                      <button class="matrix-btn run-btn" data-event="4">4</button>
+                      <button class="matrix-btn run-btn" data-event="6">6</button>
+                      <!-- Wicket -->
+                      <button class="matrix-btn wicket-btn" data-event="W">W</button>
+                      <!-- Extras -->
+                      <button class="matrix-btn extra-btn" data-event="WD">WD</button>
+                      <button class="matrix-btn extra-btn" data-event="NB">NB</button>
+                      <button class="matrix-btn extra-btn" data-event="BYE+1">B+1</button>
+                      <button class="matrix-btn extra-btn" data-event="LB+1">LB+1</button>
+                      <!-- Other Controls -->
+                      <button class="matrix-btn control-btn" id="rotate-strike-btn">Rotate</button>
+                      <button class="matrix-btn undo-btn" id="undo-ball-btn" disabled>Undo (60s)</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Non-scorer placeholder message -->
+                <div id="viewer-message" class="viewer-message">
+                  <p>You are viewing this match live. Scorecard and Match stats update automatically as the scorer logs events.</p>
+                </div>
+              </div>
+
+              <!-- Content Tab 2: Full Scorecard -->
+              <div class="scoring-tab-content" id="match-tab-scorecard" style="display: none;">
+                <div class="scorecard-wrapper">
+                  <div class="scorecard-section">
+                    <h3 id="sc-bat-team-title">Batting Innings</h3>
+                    <div class="table-container">
+                      <table class="data-table">
+                        <thead>
+                          <tr>
+                            <th>Batsman</th>
+                            <th>Dismissal</th>
+                            <th>Runs</th>
+                            <th>Balls</th>
+                            <th>4s</th>
+                            <th>6s</th>
+                            <th>SR</th>
+                          </tr>
+                        </thead>
+                        <tbody id="sc-batting-body">
+                          <!-- Batting scorecard records -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="scorecard-section margin-top-large">
+                    <h3 id="sc-bowl-team-title">Bowling Innings</h3>
+                    <div class="table-container">
+                      <table class="data-table">
+                        <thead>
+                          <tr>
+                            <th>Bowler</th>
+                            <th>Overs</th>
+                            <th>Maidens</th>
+                            <th>Runs</th>
+                            <th>Wickets</th>
+                            <th>Econ</th>
+                          </tr>
+                        </thead>
+                        <tbody id="sc-bowling-body">
+                          <!-- Bowling scorecard records -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Content Tab 3: Match Statistics -->
+              <div class="scoring-tab-content" id="match-tab-stats" style="display: none;">
+                <div class="match-stats-grid" id="match-stats-panel">
+                  <!-- Match statistics like MVP, most runs, most wickets will render here -->
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 12. Profile View -->
+          <section id="view-profile" class="view-section" style="display: none;">
+            <!-- Profile Details Card -->
+            <div class="profile-layout">
+              <div class="profile-card">
+                <div class="profile-card-header">
+                  <div class="profile-avatar" id="prof-avatar">?</div>
+                  <h2 id="prof-name">Player Name</h2>
+                  <span class="user-role-badge" id="prof-role">Player</span>
+                </div>
+                <div class="profile-card-details">
+                  <div class="detail-row"><strong>ID:</strong> <span id="prof-id">loading...</span></div>
+                  <div class="detail-row"><strong>Email:</strong> <span id="prof-email">loading...</span></div>
+                  <div class="detail-row"><strong>Mobile:</strong> <span id="prof-mobile">loading...</span></div>
+                  <div class="detail-row"><strong>Gender:</strong> <span id="prof-gender">loading...</span></div>
+                </div>
+                
+                <div class="profile-actions margin-top-medium" id="prof-action-area">
+                  <!-- Actions like Request Admin and Claim Guest Score buttons -->
+                  <button class="primary-btn full-width" id="prof-request-admin-btn">Request Admin Role</button>
+                  <button class="secondary-btn full-width margin-top-small" id="prof-claim-guest-btn">Claim Guest Scores</button>
+                </div>
+
+                <div class="profile-rules-box margin-top-medium">
+                  <strong>Access Policy:</strong>
+                  <ul>
+                    <li>Tournaments can only be created by Admins.</li>
+                    <li>Only the Admin who created a tournament can schedule and score its matches.</li>
+                    <li>Players can view all matches, but cannot create or score them.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Player Stats / Tabs (Right Panel) -->
+              <div class="profile-stats-panel">
+                <h3>Player Statistics</h3>
+                <div class="bento-grid" id="prof-stats-grid">
+                  <!-- Bento cards for runs, wickets, averages, etc. -->
+                </div>
+
+                <div class="profile-tabs margin-top-large">
+                  <div class="sub-tabs">
+                    <button class="sub-tab-btn active" data-profile-tab="matches">Matches History</button>
+                    <button class="sub-tab-btn" data-profile-tab="notifications">Notifications Inbox</button>
+                  </div>
+                  
+                  <div class="profile-tab-content" id="prof-tab-matches">
+                    <div class="table-container">
+                      <table class="data-table">
+                        <thead>
+                          <tr>
+                            <th>Match</th>
+                            <th>Runs</th>
+                            <th>Balls</th>
+                            <th>Wickets</th>
+                            <th>Runs Conceded</th>
+                            <th>Result</th>
+                          </tr>
+                        </thead>
+                        <tbody id="prof-matches-body">
+                          <tr><td colspan="6" class="empty-state">No match history.</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="profile-tab-content" id="prof-tab-notifications" style="display: none;">
+                    <ul class="notifications-list" id="prof-notifications-list">
+                      <li class="empty-state">No notifications.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </main>
+    </div>
+
+    <!-- Modals Backdrop System -->
+    <div class="modal-backdrop" id="modalBackdrop" hidden>
+      
+      <!-- General Form Modal -->
+      <div class="modal" id="general-modal" role="dialog" aria-modal="true" style="display: none;">
+        <div class="modal-header">
+          <h2 id="modalTitle">Dialog Title</h2>
+          <button class="icon-btn close-modal-btn" aria-label="Close">&times;</button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+      </div>
+
+      <!-- Sequential Openers Selector Modal -->
+      <div class="modal" id="openers-modal" role="dialog" aria-modal="true" style="display: none;">
+        <div class="modal-header">
+          <h2>Select Innings Openers</h2>
+        </div>
+        <div class="modal-body">
+          <form id="openers-form">
+            <div class="form-group">
+              <label for="openers-striker">Select Striker Batsman</label>
+              <select id="openers-striker" required>
+                <option value="">Choose Striker...</option>
+              </select>
+            </div>
+            <div class="form-group" id="non-striker-group">
+              <label for="openers-nonstriker">Select Non-Striker Batsman</label>
+              <select id="openers-nonstriker" required>
+                <option value="">Choose Non-Striker...</option>
+              </select>
+            </div>
+            <button type="submit" class="primary-btn full-width">Next: Select Bowler &rarr;</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Sequential Bowler Selector Modal -->
+      <div class="modal" id="bowler-modal" role="dialog" aria-modal="true" style="display: none;">
+        <div class="modal-header">
+          <h2>Select Bowler</h2>
+        </div>
+        <div class="modal-body">
+          <form id="bowler-form">
+            <div class="form-group">
+              <label for="bowler-select">Select Bowler for Next Spell</label>
+              <select id="bowler-select" required>
+                <option value="">Choose Bowler...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="bowler-spell">Spell Type</label>
+              <select id="bowler-spell" required>
+                <!-- Dynamically populated by engine spell types (Baby Over vs Normal Over) -->
+              </select>
+            </div>
+            <button type="submit" class="primary-btn full-width">Start Bowling &rarr;</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Out Wicket Detail Modal -->
+      <div class="modal" id="wicket-modal" role="dialog" aria-modal="true" style="display: none;">
+        <div class="modal-header">
+          <h2>Select Dismissal Details</h2>
+        </div>
+        <div class="modal-body">
+          <form id="wicket-form">
+            <div class="form-group">
+              <label for="wicket-batsman">Dismissed Batsman</label>
+              <select id="wicket-batsman" required>
+                <!-- Striker or Non-striker (run out can be either) -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="wicket-type">Type of Dismissal</label>
+              <select id="wicket-type" required>
+                <option value="Bowled">Bowled</option>
+                <option value="Caught">Caught</option>
+                <option value="LBW">LBW</option>
+                <option value="Run Out Striker">Run Out (Striker End)</option>
+                <option value="Run Out Non-Striker">Run Out (Non-Striker End)</option>
+                <option value="Stumped">Stumped</option>
+                <option value="Hit Wicket">Hit Wicket</option>
+              </select>
+            </div>
+            <div class="form-group" id="wicket-fielder-group" style="display: none;">
+              <label for="wicket-fielder">Fielder (Catch/Run Out)</label>
+              <select id="wicket-fielder">
+                <option value="">Select Fielder...</option>
+              </select>
+            </div>
+            <button type="submit" class="primary-btn full-width">Confirm Out</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Guest Score Claim Search Modal -->
+      <div class="modal" id="claim-guest-modal" role="dialog" aria-modal="true" style="display: none;">
+        <div class="modal-header">
+          <h2>Claim Guest Player Score</h2>
+          <button class="icon-btn close-modal-btn" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="guest-search-input">Search Guest Player Name</label>
+            <input type="text" id="guest-search-input" placeholder="Type guest name...">
+          </div>
+          <div class="guest-results-list" id="guest-search-results">
+            <!-- Unclaimed guest players listed here -->
+            <p class="empty-state">Start typing to search unclaimed guests...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Innings Transition / Target Popup -->
+      <div class="modal" id="transition-modal" role="dialog" aria-modal="true" style="display: none;">
+        <div class="modal-header">
+          <h2 id="transition-title">Innings Complete</h2>
+        </div>
+        <div class="modal-body text-center">
+          <div class="transition-icon">🏆</div>
+          <p id="transition-message" class="transition-message-text">Innings 1 is complete! Team B needs X runs in Y overs to win.</p>
+          <button id="transition-next-btn" class="primary-btn full-width">Select Next Innings Openers</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Toast Notifications Stack -->
     <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
+    <!-- Firebase App initialization and boot script -->
     <script type="module" src="src/js/app.js"></script>
   </body>
 </html>

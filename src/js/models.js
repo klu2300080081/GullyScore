@@ -3,16 +3,9 @@ export const COLLECTIONS = [
   "teams",
   "players",
   "matches",
-  "innings",
-  "overs",
-  "balls",
-  "scorecards",
-  "settings",
-  "tournaments",
-  "player_match_history",
-  "batting_scorecards",
-  "bowling_scorecards",
-  "team_match_stats",
+  "adminRequests",
+  "guestClaims",
+  "notifications"
 ];
 
 export const BALL_EVENTS = [
@@ -39,55 +32,97 @@ export const DEFAULT_SETTINGS = {
 };
 
 export function uid(prefix = "id") {
-  return `${prefix}_${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`;
+  return `${prefix}_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 11)}`;
 }
 
-export function makePlayer({ name, mobile = "", email = "", isCommonPlayer = false }) {
+export function makeUser({ uid: authUid, name, email, mobile, gender, role = "player" }) {
+  return {
+    id: authUid,
+    authUid,
+    name: name.trim(),
+    email: email.trim(),
+    mobile: mobile.trim(),
+    gender,
+    role, // 'superadmin' | 'admin' | 'player'
+    createdAt: new Date().toISOString()
+  };
+}
+
+export function makePlayer({ name, mobile = "", email = "", gender = "Other", isGuest = false, createdByAdminId = "", userId = "" }) {
   return {
     id: uid("player"),
+    userId: userId || null,
     name: name.trim(),
     mobile: mobile.trim(),
     email: email.trim(),
+    gender,
+    isGuest: !!isGuest,
+    createdByAdminId: createdByAdminId || null,
+    claimedBy: null,
+    claimedAt: null,
+    claimable: !isGuest, // Regular players are not claimable; guest players are claimable when created, and become false when claimed.
+    teamIds: [],
     createdAt: new Date().toISOString(),
+    
+    // Core batting statistics
     matchesPlayed: 0,
     matchesWon: 0,
     totalRuns: 0,
     totalBalls: 0,
     totalFours: 0,
     totalSixes: 0,
-    totalWickets: 0,
-    totalRunsConceded: 0,
     strikeRate: 0,
-    economy: 0,
     highestScore: 0,
-    bestBowling: "-",
-    isCommonPlayer: !!isCommonPlayer,
-    commonMatchesPlayed: 0,
     totalFifties: 0,
     totalCenturies: 0,
+    
+    // Core bowling statistics
+    totalWickets: 0,
+    totalRunsConceded: 0,
+    totalOversBowled: 0, // In decimal format or ball count
+    totalBallsBowled: 0,
+    economy: 0,
+    bestBowling: "-", // e.g. "3/12"
+    
+    // Umpiring/Creation stats
+    matchesAsUmpire: 0,
+    teamsCreatedCount: 0,
+    mvpCount: 0 // Track total MVP Bat/Bowl awards
   };
 }
 
-export function makeTeam({ name, playerIds = [], captainId = "" }) {
+export function makeTeam({ name, playerIds = [], captainId = "", createdByAdminId = "" }) {
   return {
     id: uid("team"),
     name: name.trim(),
     playerIds: [...new Set(playerIds)],
     captainId: captainId,
+    createdByAdminId: createdByAdminId,
+    captainHistory: captainId ? [{ captainId, fromDate: new Date().toISOString(), toDate: null }] : [],
     createdAt: new Date().toISOString(),
+    
+    // Team stats
+    matchesPlayed: 0,
+    matchesWon: 0,
+    matchesLost: 0,
+    matchesTied: 0,
+    totalRunsScored: 0,
+    totalOversFaced: 0,
+    totalRunsConceded: 0,
+    totalOversBowled: 0,
+    netRunRate: 0
   };
 }
 
-export function makeMatch({ tournamentId = "", teamAId, teamBId, settings, tossWinnerId, tossChoice }) {
+export function makeMatch({ tournamentId = "", teamAId, teamBId, settings, umpireId = "" }) {
   return {
     id: uid("match"),
     tournamentId,
     teamAId,
     teamBId,
     settings: { ...DEFAULT_SETTINGS, ...settings },
-    tossWinnerId,
-    tossChoice,
-    status: "setup",
+    umpireId, // the admin who created the match
+    status: "setup", // 'setup' | 'live' | 'completed'
     inningsIndex: 0,
     innings: [],
     result: "",
@@ -99,24 +134,59 @@ export function makeMatch({ tournamentId = "", teamAId, teamBId, settings, tossW
     mvpBatsmanId: "",
     mvpBowlerId: "",
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 }
 
-export function makeTournament({ name, description = "", location = "", startDate = "", endDate = "", status = "setup", totalTeams = 0, totalMatches = 0 }) {
+export function makeTournament({ name, description = "", location = "", startDate = "", endDate = "", structure = "None", createdByAdminId = "" }) {
   return {
     id: uid("tournament"),
     tournamentName: name.trim(),
     description: description.trim(),
     location: location.trim(),
-    startDate: startDate,
-    endDate: endDate,
-    status,
-    totalTeams,
-    totalMatches,
-    winnerTeamId: "",
-    createdBy: "user",
+    startDate,
+    endDate,
+    structure, // 'None' | 'T20' | 'Knockout' | 'ICC-style'
+    status: "ongoing", // 'ongoing' | 'completed'
+    teamIds: [],
+    createdByAdminId,
+    champion: null,
+    runnerUp: null,
+    manOfTheSeries: null,
+    createdAt: new Date().toISOString()
+  };
+}
+
+export function makeGuestClaim({ guestPlayerId, claimantPlayerId, adminId }) {
+  return {
+    id: uid("claim"),
+    guestPlayerId,
+    claimantPlayerId,
+    adminId, // Only the admin who created the guest can approve
+    status: "pending", // 'pending' | 'approved' | 'rejected'
     createdAt: new Date().toISOString(),
+    resolvedAt: null,
+    notifiedClaimant: false
+  };
+}
+
+export function makeAdminRequest({ playerId }) {
+  return {
+    id: uid("request"),
+    playerId,
+    status: "pending", // 'pending' | 'approved' | 'rejected'
+    createdAt: new Date().toISOString()
+  };
+}
+
+export function makeNotification({ message, type, linkTo = "" }) {
+  return {
+    id: uid("notif"),
+    message: message.trim(),
+    type, // 'claim_request' | 'claim_approved' | 'claim_rejected' | 'admin_request_approved' | 'admin_request_rejected'
+    read: false,
+    linkTo,
+    createdAt: new Date().toISOString()
   };
 }
 
@@ -131,4 +201,3 @@ export class WicketFallen {
     this.fielderId = fielderId;
   }
 }
-
