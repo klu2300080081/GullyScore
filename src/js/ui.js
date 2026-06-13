@@ -223,6 +223,7 @@ export class UI {
   renderSidebar() {
     const role = getActiveRole();
     const nav = document.getElementById("sidebar-nav");
+    const mobileNav = document.getElementById("mobile-nav");
     
     let html = `
       <button class="nav-item active" data-view="about" onclick="window.location.hash='#/about'">
@@ -259,7 +260,32 @@ export class UI {
       </button>
     `;
 
-    nav.innerHTML = html;
+    if (nav) nav.innerHTML = html;
+
+    if (mobileNav) {
+      mobileNav.innerHTML = `
+        <a href="#/dashboard" class="mobile-nav-item" data-mobview="dashboard">
+          <span class="mobile-nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="#/tournaments" class="mobile-nav-item" data-mobview="tournaments">
+          <span class="mobile-nav-icon">🏆</span>
+          <span>Tournaments</span>
+        </a>
+        <a href="#/matches" class="mobile-nav-item" data-mobview="match">
+          <span class="mobile-nav-icon">🔴</span>
+          <span>Matches</span>
+        </a>
+        <a href="#/profile" class="mobile-nav-item" data-mobview="profile">
+          <span class="mobile-nav-icon">👤</span>
+          <span>Profile</span>
+        </a>
+        <a href="#/about" class="mobile-nav-item" data-mobview="about">
+          <span class="mobile-nav-icon">ℹ️</span>
+          <span>About</span>
+        </a>
+      `;
+    }
   }
 
   // --- VIEW 0: ABOUT ---

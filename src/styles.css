@@ -635,7 +635,7 @@ a:hover {
   background-color: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow-x: auto;
   box-shadow: var(--shadow-sm);
   margin-bottom: 24px;
 }
@@ -678,6 +678,12 @@ a:hover {
   gap: 8px;
   border-bottom: 1px solid var(--line);
   padding-bottom: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.sub-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .sub-tab-btn {
@@ -1474,16 +1480,115 @@ a:hover {
   to { transform: translateX(0); opacity: 1; }
 }
 
+/* Mobile Sidebar Overlay */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1999;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  display: block;
+  opacity: 1;
+}
+
+/* Topbar Left and Logo styles */
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.menu-toggle-btn {
+  display: none; /* Hidden on desktop */
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.menu-toggle-btn:hover {
+  background-color: var(--panel-2);
+}
+
+.mobile-brand {
+  display: none; /* Hidden on desktop */
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-brand-mark {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px rgba(45, 212, 191, 0.25);
+}
+
+.mobile-brand strong {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
 /* Responsive Grid Adjustments */
-@media (max-width: 1024px) {
+@media (min-width: 768px) and (max-width: 1024px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: 240px 1fr;
   }
   .sidebar {
-    height: auto;
-    position: static;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
+    padding: 16px;
+  }
+  .brand strong {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    padding-bottom: 74px; /* Leave space for bottom navigation bar */
+  }
+  .sidebar {
+    display: flex !important;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 280px;
+    z-index: 2000;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.45);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .menu-toggle-btn {
+    display: block;
+  }
+  .mobile-brand {
+    display: flex;
+  }
+  .mobile-nav {
+    display: flex;
   }
   .profile-layout {
     grid-template-columns: 1fr;
@@ -1492,27 +1597,137 @@ a:hover {
     grid-template-columns: 1fr;
   }
   .topbar {
-    padding: 16px 20px;
+    padding: 12px 16px;
+  }
+  .mobile-brand strong {
+    display: none; /* Hide 'GullyScore' text on mobile to fit view title next to logo */
+  }
+  .page-title-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .page-title-area::before {
+    content: '|';
+    color: var(--line);
+    font-weight: 300;
+    font-size: 18px;
+  }
+  .page-title-area #view-subtitle {
+    display: none;
+  }
+  .page-title-area h1 {
+    font-size: 1.25rem;
+    margin: 0;
   }
   .content-container {
-    padding: 20px;
+    padding: 16px;
   }
-}
-
-@media (max-width: 600px) {
+  .bento-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+  .bento-grid-mini {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+  .bento-card {
+    padding: 16px;
+  }
+  .bento-grid > .bento-card {
+    grid-column: span 1 !important;
+  }
+  .tournaments-grid, .teams-grid, .matches-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+  .auth-card {
+    padding: 24px 16px;
+    max-width: 92%;
+    border-radius: 12px;
+  }
   .player-cards-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
+    gap: 16px;
   }
   .matrix-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px;
   }
   .msh-scoreboard {
-    flex-direction: column;
+    flex-direction: column !important;
     gap: 16px;
   }
   .top-actions {
-    flex-wrap: wrap;
+    flex-wrap: wrap !important;
+    gap: 8px;
   }
+  .modal {
+    max-width: 96% !important;
+    border-radius: 12px;
+  }
+  .modal-header, .modal-body {
+    padding: 16px !important;
+  }
+}
+
+/* Mobile Bottom Navigation Styles */
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background-color: var(--panel);
+  border-top: 1px solid var(--line);
+  display: none; /* Hidden on desktop */
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1000;
+  padding: 0 8px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 500;
+  flex: 1;
+  height: 100%;
+  transition: var(--transition);
+  position: relative;
+}
+
+.mobile-nav-item.active {
+  color: var(--brand);
+}
+
+.mobile-nav-icon {
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+.mobile-nav-item::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 3px;
+  background: var(--brand);
+  transition: var(--transition);
+  border-radius: 0 0 4px 4px;
+}
+
+.mobile-nav-item.active::after {
+  width: 40px;
 }
 
 /* ===== ABOUT PAGE ===== */

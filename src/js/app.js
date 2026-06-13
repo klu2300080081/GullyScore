@@ -176,5 +176,47 @@ document.getElementById("closePlayerBannerBtn").addEventListener("click", () => 
   document.getElementById("player-banner").style.display = "none";
 });
 
+// Mobile Sidebar Menu Toggling and Brand Clicks
+const menuToggleBtn = document.getElementById("menu-toggle-btn");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+const sidebar = document.querySelector(".sidebar");
+const mobileBrand = document.getElementById("mobile-brand");
+const desktopBrand = document.querySelector(".sidebar .brand");
+
+if (menuToggleBtn && sidebar && sidebarOverlay) {
+  menuToggleBtn.addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+    sidebarOverlay.classList.toggle("active");
+  });
+
+  sidebarOverlay.addEventListener("click", () => {
+    sidebar.classList.remove("open");
+    sidebarOverlay.classList.remove("active");
+  });
+}
+
+// Close mobile sidebar on navigation link clicks
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#sidebar-nav button") || e.target.closest("#sidebar-logout-btn")) {
+    if (sidebar && sidebar.classList.contains("open")) {
+      sidebar.classList.remove("open");
+      sidebarOverlay.classList.remove("active");
+    }
+  }
+});
+
+if (mobileBrand) {
+  mobileBrand.addEventListener("click", () => {
+    window.location.hash = "#/dashboard";
+  });
+}
+
+if (desktopBrand) {
+  desktopBrand.style.cursor = "pointer";
+  desktopBrand.addEventListener("click", () => {
+    window.location.hash = "#/dashboard";
+  });
+}
+
 // Boot the application
 boot();

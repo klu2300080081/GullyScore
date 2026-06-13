@@ -69,6 +69,16 @@ export class HashRouter {
           params[name] = match[index + 1];
         });
 
+        // Close mobile sidebar on navigation
+        const sidebar = document.querySelector(".sidebar");
+        const overlay = document.getElementById("sidebar-overlay");
+        if (sidebar && sidebar.classList.contains("open")) {
+          sidebar.classList.remove("open");
+        }
+        if (overlay && overlay.classList.contains("active")) {
+          overlay.classList.remove("active");
+        }
+
         // Toggle active navigation link style in sidebar
         this.updateActiveNavLink(route.pattern);
 
@@ -99,6 +109,15 @@ export class HashRouter {
     const navItems = document.querySelectorAll("#sidebar-nav .nav-item");
     navItems.forEach(item => {
       if (item.getAttribute("data-view") === viewName) {
+        item.classList.add("active");
+      } else {
+        item.classList.remove("active");
+      }
+    });
+
+    const mobItems = document.querySelectorAll("#mobile-nav .mobile-nav-item");
+    mobItems.forEach(item => {
+      if (item.getAttribute("data-mobview") === viewName) {
         item.classList.add("active");
       } else {
         item.classList.remove("active");
