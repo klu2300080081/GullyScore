@@ -1,6 +1,38 @@
 <!doctype html>
 <html lang="en" data-theme="dark">
   <head>
+    <script>
+      window.addEventListener('error', function(e) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.position = 'fixed';
+        errorDiv.style.top = '0';
+        errorDiv.style.left = '0';
+        errorDiv.style.width = '100%';
+        errorDiv.style.background = 'red';
+        errorDiv.style.color = 'white';
+        errorDiv.style.padding = '10px';
+        errorDiv.style.zIndex = '10000';
+        errorDiv.style.fontFamily = 'monospace';
+        errorDiv.style.whiteSpace = 'pre-wrap';
+        errorDiv.textContent = 'ERROR: ' + e.message + '\nat ' + e.filename + ':' + e.lineno + ':' + e.colno + '\nStack: ' + (e.error ? e.error.stack : 'No stack');
+        document.body.appendChild(errorDiv);
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        const errorDiv = document.createElement('div');
+        errorDiv.style.position = 'fixed';
+        errorDiv.style.top = '0';
+        errorDiv.style.left = '0';
+        errorDiv.style.width = '100%';
+        errorDiv.style.background = 'darkred';
+        errorDiv.style.color = 'white';
+        errorDiv.style.padding = '10px';
+        errorDiv.style.zIndex = '10000';
+        errorDiv.style.fontFamily = 'monospace';
+        errorDiv.style.whiteSpace = 'pre-wrap';
+        errorDiv.textContent = 'PROMISE REJECTION: ' + e.reason + '\nStack: ' + (e.reason ? e.reason.stack : 'No stack');
+        document.body.appendChild(errorDiv);
+      });
+    </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0f172a">
@@ -53,6 +85,7 @@
             <label for="login-password">Password</label>
             <input type="password" id="login-password" required placeholder="••••••••">
           </div>
+          <div class="auth-error-msg" id="login-error-msg" style="display:none;"></div>
           <button type="submit" class="auth-btn">Sign In</button>
         </form>
 
@@ -83,6 +116,11 @@
             <label for="register-password">Password</label>
             <input type="password" id="register-password" required placeholder="Minimum 6 characters">
           </div>
+          <div class="form-group">
+            <label for="register-password-confirm">Re-enter Password</label>
+            <input type="password" id="register-password-confirm" required placeholder="Repeat password">
+          </div>
+          <div class="auth-error-msg" id="register-error-msg" style="display:none;"></div>
           <button type="submit" class="auth-btn">Create Account</button>
         </form>
 
@@ -505,6 +543,10 @@
                 <div class="msh-status-bar" id="score-status-text">
                   Match starting soon...
                 </div>
+                <!-- Boundaries bar -->
+                <div class="match-boundaries-bar" id="match-boundaries-summary" style="text-align: center; margin-top: 10px; font-size: 13px; color: var(--muted); border-top: 1px dashed var(--border); padding-top: 8px;">
+                  Boundaries in Match: Fours: <strong id="match-fours-count" style="color: var(--accent);">0</strong> | Sixes: <strong id="match-sixes-count" style="color: var(--brand);">0</strong>
+                </div>
               </div>
 
               <!-- Scoring Tabs -->
@@ -518,6 +560,10 @@
               <div class="scoring-tab-content" id="match-tab-scoring">
                 <!-- Score control grid for scorers -->
                 <div id="scorer-controls" class="scorer-controls" style="display: none;">
+                  <div id="pause-control-bar" class="pause-control-bar" style="display: flex; justify-content: space-between; align-items: center; background: var(--panel-2); padding: 10px 15px; border-radius: var(--radius-md); margin-bottom: 15px; border: 1px solid var(--border);">
+                    <span style="font-weight: 500; font-size: 14px; color: var(--text);">Match Time Controls</span>
+                    <button class="primary-btn btn-small" id="pause-match-btn" style="min-width: 120px; background: var(--danger);">Pause Match</button>
+                  </div>
                   <div class="player-cards-grid">
                     <!-- Striker & Non-Striker Card -->
                     <div class="batsmen-card">
@@ -543,7 +589,7 @@
                       <h3>Bowling</h3>
                       <div class="bowler-row">
                         <div>
-                          <span class="bowler-indicator">🏀</span>
+                          <span class="bowler-indicator">🎳</span>
                           <span id="bowler-name">Bowler</span>
                         </div>
                         <strong id="bowler-stats">0-0 (0.0)</strong>
@@ -579,6 +625,7 @@
                       <!-- Other Controls -->
                       <button class="matrix-btn control-btn" id="rotate-strike-btn">Rotate</button>
                       <button class="matrix-btn undo-btn" id="undo-ball-btn" disabled>Undo (60s)</button>
+                      <button class="matrix-btn control-btn" id="declare-tie-btn" style="background: rgba(99, 102, 241, 0.1); color: var(--brand-2); border: 1px dashed var(--brand-2);">Declare Tie</button>
                     </div>
                   </div>
                 </div>
@@ -646,7 +693,16 @@
             </div>
           </section>
 
+
+          <!-- 13. About View -->
+          <section id="view-about" class="view-section" style="display: none;">
+            <div id="about-content">
+              <!-- Rendered by ui.js -->
+            </div>
+          </section>
+
           <!-- 12. Profile View -->
+
           <section id="view-profile" class="view-section" style="display: none;">
             <!-- Profile Details Card -->
             <div class="profile-layout">
@@ -742,6 +798,7 @@
       <div class="modal" id="openers-modal" role="dialog" aria-modal="true" style="display: none;">
         <div class="modal-header">
           <h2>Select Innings Openers</h2>
+          <button class="modal-x-btn close-modal-btn" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
           <form id="openers-form">
@@ -766,6 +823,7 @@
       <div class="modal" id="bowler-modal" role="dialog" aria-modal="true" style="display: none;">
         <div class="modal-header">
           <h2>Select Bowler</h2>
+          <button class="modal-x-btn close-modal-btn" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
           <form id="bowler-form">
@@ -790,6 +848,7 @@
       <div class="modal" id="wicket-modal" role="dialog" aria-modal="true" style="display: none;">
         <div class="modal-header">
           <h2>Select Dismissal Details</h2>
+          <button class="modal-x-btn close-modal-btn" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
           <form id="wicket-form">
@@ -844,6 +903,7 @@
       <div class="modal" id="transition-modal" role="dialog" aria-modal="true" style="display: none;">
         <div class="modal-header">
           <h2 id="transition-title">Innings Complete</h2>
+          <button class="modal-x-btn close-modal-btn" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body text-center">
           <div class="transition-icon">🏆</div>

@@ -3,7 +3,7 @@ import { getActiveRole, getCurrentUser } from "./auth.js";
 export class HashRouter {
   constructor() {
     this.routes = [];
-    this.defaultRoute = "#/dashboard";
+    this.defaultRoute = "#/about";
     window.addEventListener("hashchange", () => this.resolve());
   }
 
@@ -35,10 +35,6 @@ export class HashRouter {
       // Not logged in -> show login screen, hide app shell
       authScreen.style.display = "grid";
       appShell.style.display = "none";
-      // Clear hash to prevent rendering restricted pages under the hood
-      if (window.location.hash !== "" && window.location.hash !== "#/") {
-        window.location.hash = "";
-      }
       return;
     }
 
@@ -91,7 +87,8 @@ export class HashRouter {
   updateActiveNavLink(routePattern) {
     // Map detail sub-routes back to their parent nav item
     let viewName = "";
-    if (routePattern.startsWith("#/dashboard")) viewName = "dashboard";
+    if (routePattern.startsWith("#/about")) viewName = "about";
+    else if (routePattern.startsWith("#/dashboard")) viewName = "dashboard";
     else if (routePattern.startsWith("#/tournament")) viewName = "tournaments";
     else if (routePattern.startsWith("#/team")) viewName = "teams";
     else if (routePattern.startsWith("#/player")) viewName = "players";

@@ -20,7 +20,9 @@ async function boot() {
   ui.init();
 
   // 3. Register Hash Routes
+  router.addRoute("#/about", () => ui.showAbout());
   router.addRoute("#/dashboard", () => ui.showDashboard());
+
   router.addRoute("#/tournaments", () => ui.showTournaments());
   router.addRoute("#/tournament/:id", (params) => ui.showTournamentDetail(params.id));
   router.addRoute("#/teams", () => ui.showTeams());
@@ -73,13 +75,25 @@ loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("login-email").value;
   const password = document.getElementById("login-password").value;
+  const errEl = document.getElementById("login-error-msg");
+  errEl.style.display = "none";
   
   try {
     ui.showLoader();
     await loginUser(email, password);
     ui.toast("Successfully signed in!", "success");
   } catch (error) {
-    ui.toast(error.message, "danger");
+    // Show inline error near the form
+    let msg = error.message || "Sign in failed. Please try again.";
+    if (msg.includes("invalid-credential") || msg.includes("wrong-password") || msg.includes("user-not-found")) {
+      msg = "Invalid email or password. Please check your credentials.";
+    } else if (msg.includes("too-many-requests")) {
+      msg = "Too many failed attempts. Please try again later.";
+    } else if (msg.includes("network")) {
+      msg = "Network error. Check your connection and try again.";
+    }
+    errEl.textContent = msg;
+    errEl.style.display = "block";
   } finally {
     ui.hideLoader();
   }
@@ -92,9 +106,19 @@ registerForm.addEventListener("submit", async (e) => {
   const mobile = document.getElementById("register-mobile").value;
   const gender = document.getElementById("register-gender").value;
   const password = document.getElementById("register-password").value;
+  const passwordConfirm = document.getElementById("register-password-confirm").value;
+  const errEl = document.getElementById("register-error-msg");
+  errEl.style.display = "none";
 
   if (password.length < 6) {
-    ui.toast("Password must be at least 6 characters.", "warning");
+    errEl.textContent = "Password must be at least 6 characters.";
+    errEl.style.display = "block";
+    return;
+  }
+
+  if (password !== passwordConfirm) {
+    errEl.textContent = "Passwords do not match. Please re-enter.";
+    errEl.style.display = "block";
     return;
   }
 
@@ -103,7 +127,12 @@ registerForm.addEventListener("submit", async (e) => {
     await registerUser(name, email, mobile, gender, password);
     ui.toast("Account created successfully!", "success");
   } catch (error) {
-    ui.toast(error.message, "danger");
+    let msg = error.message || "Registration failed. Please try again.";
+    if (msg.includes("email-already-in-use")) {
+      msg = "This email is already registered. Try signing in instead.";
+    }
+    errEl.textContent = msg;
+    errEl.style.display = "block";
   } finally {
     ui.hideLoader();
   }

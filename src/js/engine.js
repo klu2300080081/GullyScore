@@ -1,4 +1,4 @@
-import { BALL_EVENTS, DEFAULT_SETTINGS, uid, WicketFallen } from "./models.js";
+import { BALL_EVENTS, DEFAULT_SETTINGS, uid } from "./models.js";
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const oversStr = (balls) => `${Math.floor(balls / 6)}.${balls % 6}`;
@@ -78,6 +78,11 @@ export class MatchEngine {
       bowling: {},
       balls: [],
       completedOvers: [],
+      startTime: null,
+      endTime: null,
+      isPaused: false,
+      lastPauseTime: null,
+      pausedDuration: 0,
       active: true,
     };
   }
@@ -233,7 +238,13 @@ export class MatchEngine {
     if (!innings.strikerId) throw new Error("Select batsman before scoring.");
     if (!innings.currentBowlerId || !innings.currentOver) throw new Error("Select a bowler first.");
     if (innings.currentBowlerBallsRemaining <= 0) throw new Error("Select the next bowler before scoring.");
+    
+    if (innings.isPaused) throw new Error("Match is paused. Resume to record events.");
+
     this.saveSnapshot();
+    if (!innings.startTime) {
+      innings.startTime = Date.now();
+    }
     const parsed = this.parseEvent(event);
     this.scoreBall(event, parsed, dismissalInfo);
     this.checkEndState();
@@ -311,6 +322,9 @@ export class MatchEngine {
 
     const bowl = this.ensureBowlerRecord(innings, bowlerId);
     bowl.runsConceded += parsed.teamRuns;
+    if (parsed.teamRuns === 0) {
+      bowl.dotBalls = (bowl.dotBalls || 0) + 1;
+    }
     if (isNb || isWd) bowl.extras += this.match.settings.extrasEnabled ? 1 : 0;
     if (parsed.legal) {
       bowl.legalBalls += 1;
@@ -361,7 +375,7 @@ export class MatchEngine {
   }
 
   ensureBowlerRecord(innings, bowlerId) {
-    innings.bowling[bowlerId] ||= { playerId: bowlerId, legalBalls: 0, runsConceded: 0, wickets: 0, extras: 0 };
+    innings.bowling[bowlerId] ||= { playerId: bowlerId, legalBalls: 0, runsConceded: 0, wickets: 0, extras: 0, dotBalls: 0 };
     return innings.bowling[bowlerId];
   }
 
@@ -380,7 +394,7 @@ export class MatchEngine {
     };
     innings.batting[outId].dismissalInfo = info;
 
-    // Maintain wicketsFallen timeline
+    // Maintain wicketsFallen timeline (plain object — NOT a class instance, for Firestore compatibility)
     innings.wicketsFallen ||= [];
     const wicketNum = innings.wickets + 1;
     
@@ -389,15 +403,15 @@ export class MatchEngine {
     const overNum = Math.floor((ballIndex - 1) / 6);
     const ballInOver = ((ballIndex - 1) % 6) + 1;
 
-    innings.wicketsFallen.push(new WicketFallen({
+    innings.wicketsFallen.push({
       wicketNumber: wicketNum,
       batsmanId: outId,
       bowlerId: info.bowlerId,
       cause: info.cause,
-      fielderId: info.fielderId,
+      fielderId: info.fielderId || "",
       overNumber: overNum,
       ballInOver: ballInOver
-    }));
+    });
 
     innings.dismissedPlayerIds.push(outId);
     innings.wickets += 1;
@@ -512,6 +526,7 @@ export class MatchEngine {
     const targetChased = innings.target && innings.totalRuns >= innings.target;
     if (!allOut && !ballsDone && !targetChased) return;
     innings.active = false;
+    innings.endTime = Date.now();
     Object.values(innings.batting).forEach((rec) => {
       if (rec.status === "batting") rec.status = "not out";
     });
@@ -625,6 +640,97 @@ export class MatchEngine {
     if (two.totalRuns > one.totalRuns) return `${teamTwo} won by ${this.teamPlayers(two.battingTeamId).length - two.wickets} wicket(s)`;
     if (one.totalRuns > two.totalRuns) return `${teamOne} won by ${one.totalRuns - two.totalRuns} run(s)`;
     return "Match tied";
+  }
+
+  declareTie() {
+    this.saveSnapshot();
+    const innings = this.currentInnings();
+    if (innings) {
+      innings.active = false;
+      Object.values(innings.batting).forEach((rec) => {
+        if (rec.status === "batting") rec.status = "not out";
+      });
+    }
+
+    this.match.status = "completed";
+    this.match.result = "Match Tied";
+    this.match.winnerTeamId = "";
+
+    let totalRuns = 0;
+    let totalWickets = 0;
+    let fours = 0;
+    let sixes = 0;
+    this.match.innings.forEach(inn => {
+      totalRuns += inn.totalRuns || 0;
+      totalWickets += inn.wickets || 0;
+      inn.balls.forEach(b => {
+        if (b.event === "4" || b.event.endsWith("+4")) fours++;
+        if (b.event === "6" || b.event.endsWith("+6")) sixes++;
+      });
+    });
+    this.match.totalRuns = totalRuns;
+    this.match.totalWickets = totalWickets;
+    this.match.totalFours = fours;
+    this.match.totalSixes = sixes;
+
+    // Calculate batsman MVP
+    let bestBatsmanId = "";
+    let maxBatsmanRuns = -1;
+    let bestBatsmanSR = -1;
+    const batsmanStats = {};
+    this.match.innings.forEach(inn => {
+      Object.entries(inn.batting).forEach(([pid, rec]) => {
+        if (rec.status !== "yet to bat" && rec.balls > 0) {
+          batsmanStats[pid] ||= { runs: 0, balls: 0 };
+          batsmanStats[pid].runs += rec.runs;
+          batsmanStats[pid].balls += rec.balls;
+        }
+      });
+    });
+    Object.entries(batsmanStats).forEach(([pid, stat]) => {
+      const sr = stat.balls > 0 ? (stat.runs / stat.balls) * 100 : 0;
+      if (stat.runs > maxBatsmanRuns) {
+        maxBatsmanRuns = stat.runs;
+        bestBatsmanSR = sr;
+        bestBatsmanId = pid;
+      } else if (stat.runs === maxBatsmanRuns) {
+        if (sr > bestBatsmanSR) {
+          bestBatsmanSR = sr;
+          bestBatsmanId = pid;
+        }
+      }
+    });
+
+    // Calculate bowler MVP
+    let bestBowlerId = "";
+    let maxBowlerWickets = -1;
+    let minBowlerRunsConceded = Infinity;
+    const bowlerStats = {};
+    this.match.innings.forEach(inn => {
+      Object.entries(inn.bowling).forEach(([pid, rec]) => {
+        if (rec.legalBalls > 0) {
+          bowlerStats[pid] ||= { wickets: 0, runsConceded: 0 };
+          bowlerStats[pid].wickets += rec.wickets;
+          bowlerStats[pid].runsConceded += rec.runsConceded;
+        }
+      });
+    });
+    Object.entries(bowlerStats).forEach(([pid, stat]) => {
+      if (stat.wickets > maxBowlerWickets) {
+        maxBowlerWickets = stat.wickets;
+        minBowlerRunsConceded = stat.runsConceded;
+        bestBowlerId = pid;
+      } else if (stat.wickets === maxBowlerWickets) {
+        if (stat.runsConceded < minBowlerRunsConceded) {
+          minBowlerRunsConceded = stat.runsConceded;
+          bestBowlerId = pid;
+        }
+      }
+    });
+
+    this.match.mvpBatsmanId = bestBatsmanId;
+    this.match.mvpBowlerId = bestBowlerId;
+    this.notice = "Match Tied by Scorer";
   }
 
   saveSnapshot() {

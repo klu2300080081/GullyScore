@@ -65,10 +65,6 @@ export async function registerUser(name, email, mobile, gender, password) {
   // Seeding Super Admin rule
   const role = email === "superadmin006@gmail.com" ? "superadmin" : "player";
 
-  // Create User document in Firestore
-  const userProfile = makeUser({ uid: authUid, name, email, mobile, gender, role });
-  await saveDoc("users", userProfile);
-
   // Auto-create Player profile linked to this User
   const playerProfile = makePlayer({
     name,
@@ -78,10 +74,10 @@ export async function registerUser(name, email, mobile, gender, password) {
     isGuest: false,
     userId: authUid
   });
-  // Use userProfile ID or generate a new player id but link it
   await saveDoc("players", playerProfile);
 
-  // Link playerId back to users collection
+  // Create User document in Firestore
+  const userProfile = makeUser({ uid: authUid, name, email, mobile, gender, role });
   userProfile.playerId = playerProfile.id;
   await saveDoc("users", userProfile);
 
@@ -94,9 +90,7 @@ export async function signInAnon() {
   
   // For anonymous players, create a temporary Player record
   const name = `Guest_${result.user.uid.substring(0, 5)}`;
-  const userProfile = makeUser({ uid: result.user.uid, name, email: "", mobile: "", gender: "Other", role: "player" });
-  await saveDoc("users", userProfile);
-
+  
   const playerProfile = makePlayer({
     name,
     mobile: "",
@@ -107,6 +101,7 @@ export async function signInAnon() {
   });
   await saveDoc("players", playerProfile);
 
+  const userProfile = makeUser({ uid: result.user.uid, name, email: "", mobile: "", gender: "Other", role: "player" });
   userProfile.playerId = playerProfile.id;
   await saveDoc("users", userProfile);
 
